@@ -36,7 +36,14 @@ unsigned long samples;
 String Tavg;
 String RHavg;
 String totalSamples;
-
+float MaxTemp;
+float MinTemp;
+float MaxRH;
+float MinRH;
+String MT;
+String mT;
+String MRH;
+String mRH;
 
 //Delay without delay
 const byte ledPin = D0;    // pin of LED
@@ -54,7 +61,7 @@ void SplashScreen(void) {
   display.setCursor(0, 0);     // Start at top-left corner
   display.setTextSize(2);      // Set text size
   display.write("Phuwanut");
-  display.setCursor(0, 15);    // Set second text starting location
+  display.setCursor(0, 16);    // Set second text starting location
   display.write("DHT OLED");
   display.display();           // Display written text on the display
 }
@@ -110,10 +117,6 @@ void setup() {
   OLED_initialize();
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
   display.setTextColor(SSD1306_WHITE); // Draw white text
-  int MaxTemp = 0;
-  int MinTemp = 0;
-  int MaxRH = 0;
-  int MinRH = 0;
   pinMode(ledPin, OUTPUT);
   pinMode(ledPin2, OUTPUT);
   Serial.begin(9600);
@@ -143,7 +146,7 @@ void loop() {
     display.write("DHT11");                // Actual text
     sensors_event_t event;                 // Create a sensors_event_t object in memory to hold results
     //Row 2-TEMP---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    display.setCursor(0, 16);              // Move cursor Down
+    display.setCursor(0, 17);              // Move cursor Down
     display.write("Temp:");                // Actual text 2
 
     dht.temperature().getEvent(&event);    // Get a new sensor event, passing in our 'event' placeholder
@@ -160,7 +163,7 @@ void loop() {
       display.write(Temp.c_str());
       display.write("C");
     }
-    display.setCursor(0, 31);
+    display.setCursor(0, 34);
     display.write("RH:");
 
     dht.humidity().getEvent(&event);      // Read relative humidity data
@@ -209,15 +212,20 @@ void loop() {
       totalSamples = String(samples);
     }
     display.setTextSize(1);
-    display.setCursor(0, 47);
+    //display.setCursor(0, 49);
+    display.setCursor(60, 0);
     display.write("Tavg:");
     display.write(Tavg.c_str());
-    display.setCursor(64, 47);
+    display.write("C");
+    //display.setCursor(64, 49);
+    display.setCursor(60, 8);
     display.write("RHavg:");
     display.write(RHavg.c_str());
+    display.write("%");
     display.setCursor(0, 57);
     display.write("count:");
     display.write(totalSamples.c_str());
+
     display.invertDisplay(invertDisplay);
     display.display();
   }
