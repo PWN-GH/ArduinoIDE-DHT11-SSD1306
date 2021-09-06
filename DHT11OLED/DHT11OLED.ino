@@ -17,14 +17,19 @@
 //Wire.begin(sda, scl);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 bool invertDisplay = false;
-
+bool currenttouch;
+bool previoustouch;
+unsigned long TouchOnCount;
+const byte touchPin =; //D5
+bool sig = false;
+const byte HoldCount = 2;
 //------------------------------------------------------------------------------------DHT
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 //define DHTTYPE DHT22  //Change if you are using DHT22
 #define DHTTYPE DHT11   //Set sensor type
-#define DHTPIN D5       //Set to pin where the DHT Sensor data is connected
+#define DHTPIN 6    // D6   //Set to pin where the DHT Sensor data is connected
 DHT_Unified dht(DHTPIN, DHTTYPE);
 //uint32_t delayMS;
 unsigned int delayMS;
@@ -46,12 +51,14 @@ String MRH;
 String mRH;
 
 //Delay without delay
-const byte ledPin = D0;    // pin of LED
+const byte ledPin = LED_BUILTIN; //D0;    // pin of LED
 const byte ledPin2 = LED_BUILTIN;
 const bool invertedLED = true;
 bool ledState = LOW;               // state to set LED to
 unsigned long previousMillis = 0;  // last time function was called
-const long interval = 1000;        // interval
+const unsigned long interval = 1000;        // interval
+unsigned long InvertIntervalCount = 0;
+const unsigned long invertinterval = 300; // in seconds(+)
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -119,6 +126,7 @@ void setup() {
   display.setTextColor(SSD1306_WHITE); // Draw white text
   pinMode(ledPin, OUTPUT);
   pinMode(ledPin2, OUTPUT);
+  pinMode(touchPin, INPUT);
   Serial.begin(9600);
   digitalWrite(ledPin, invertedLED);
   //DHT
@@ -141,12 +149,12 @@ void loop() {
     display.clearDisplay();                // Always clear old stuff before drawing new stuff
     display.setTextColor(SSD1306_WHITE);   // Draw white text
 
-    display.setCursor(0, 0);               // Start at top-left corner
+    display.setCursor(1, 1);               // Start at top-left corner
     display.setTextSize(2);                // 2x font
     display.write("DHT11");                // Actual text
     sensors_event_t event;                 // Create a sensors_event_t object in memory to hold results
     //Row 2-TEMP---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    display.setCursor(0, 17);              // Move cursor Down
+    display.setCursor(1, 17);              // Move cursor Down
     display.write("Temp:");                // Actual text 2
 
     dht.temperature().getEvent(&event);    // Get a new sensor event, passing in our 'event' placeholder
@@ -163,7 +171,7 @@ void loop() {
       display.write(Temp.c_str());
       display.write("C");
     }
-    display.setCursor(0, 34);
+    display.setCursor(1, 34);
     display.write("RH:");
 
     dht.humidity().getEvent(&event);      // Read relative humidity data
@@ -183,6 +191,7 @@ void loop() {
 
     //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+    InvertIntervalCount++;
     ledState = !ledState; // Toggle LED state
     if (isnan(event.temperature) || isnan(event.relative_humidity)) { // Not getting any data from DHT sensor
       invertDisplay = !invertDisplay;
@@ -196,7 +205,12 @@ void loop() {
       }
     }
     else if (!isnan(event.temperature) && !isnan(event.relative_humidity)) {
-      invertDisplay = false;
+      //invertDisplay = false;
+      if (InvertIntervalCount >= invertinterval) {
+        InvertIntervalCount = 0;
+        invertDisplay = !invertDisplay;
+      }
+
       digitalWrite(ledPin, invertedLED);
       digitalWrite(ledPin2, invertedLED);
 
@@ -211,20 +225,68 @@ void loop() {
       RHavg = String(averageRH, 1);
       totalSamples = String(samples);
     }
+
+    previoustouch = currenttouch;
+    currenttouch = digitalRead(touchPin);
+    if (previoustouch == true && currenttouch == false && TouchOnCount <= HoldCount) {
+      invertDisplay = !invertDisplay;
+    }
+    if (currenttouch == true && TouchOnCount == 0) {
+      TouchOnCount = 1;
+    }
+    if (previoustouch == true && currenttouch == true) {
+      TouchOnCount++;
+    }
+    else if (currenttouch == false) {
+      TouchOnCount = 0;
+    }
+    for (int i = 0; i < TouchOnCount; i++) {
+      display.setCursor(4 * i, 40);
+      display.write(".");
+
+    }
+    /*if (currenttouch == true) {
+      display.setCursor(122, 55);
+      display.write(".");
+      display.setCursor(120, 55);
+      display.write(".");
+      display.setCursor(122, 53);
+      display.write(".");
+      display.setCursor(120, 53);
+      display.write(".");
+    }*/
     display.setTextSize(1);
     //display.setCursor(0, 49);
-    display.setCursor(60, 0);
+    display.setCursor(62, 0);
     display.write("Tavg:");
     display.write(Tavg.c_str());
     display.write("C");
     //display.setCursor(64, 49);
-    display.setCursor(60, 8);
+    display.setCursor(62, 8);
     display.write("RHavg:");
     display.write(RHavg.c_str());
     display.write("%");
-    display.setCursor(0, 57);
-    display.write("count:");
+    display.setCursor(1, 56);
+    display.write("Count:");
     display.write(totalSamples.c_str());
+    display.write("-I");
+    display.write(String(invertinterval - InvertIntervalCount).c_str());
+    display.write("-T");
+    display.write(String(TouchOnCount).c_str());
+    /*sig = !sig;
+        if (sig == true) {
+      display.setCursor(122, 47);
+      display.write(".");
+      display.setCursor(120, 47);
+      display.write(".");
+      display.setCursor(122, 45);
+      display.write(".");
+      display.setCursor(120, 45);
+      display.write(".");
+      }
+    */
+    Serial.print("TouchSensor: ");
+    Serial.println(currenttouch);
 
     display.invertDisplay(invertDisplay);
     display.display();
